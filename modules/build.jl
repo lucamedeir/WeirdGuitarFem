@@ -1,13 +1,32 @@
 module Builders
 
+    using FastGaussQuadrature
+    include("./interpol.jl")
+    using .Interpol
+
     export buildAe,buildCe,buildGlobalA,buildGlobalC,buildGlobalMLeft,buildGlobalMRight,buildLM
 
-    function buildAe() #=Local matrix Aᵢⱼᵉ=∫Φ'ᵢ(x)Φ'ⱼ(x)dx in Ωᵉ=#
-        return [1/2 -1/2; -1/2 1/2]
+    function buildAe(n) #=Local matrix Aᵢⱼᵉ=∫Φ'ᵢ(x)Φ'ⱼ(x)dx in Ωᵉ=#
+        x,w = gausslegendre(n)
+
+        a1 = sum(w .* pa.(x) .* pa.(x) )
+        a2 = sum(w .* pa.(x) .* pb.(x) )
+        a3 = sum(w .* pb.(x) .* pa.(x) )
+        a4 = sum(w .* pb.(x) .* pb.(x) )
+
+        return [a1 a2; a3 a4]
     end
 
-    function buildCe() #=Local matrix Cᵢⱼᵉ=∫Φᵢ(x)Φⱼ(x)dx in Ωᵉ=#
-        return [2/3 1/3; 1/3 2/3]
+    function buildCe(n) #=Local matrix Cᵢⱼᵉ=∫Φᵢ(x)Φⱼ(x)dx in Ωᵉ=#
+
+        x,w = gausslegendre(n)
+
+        c1 = sum(w .* dpa.(x) .* dpa.(x) )
+        c2 = sum(w .* dpa.(x) .* dpb.(x) )
+        c3 = sum(w .* dpb.(x) .* dpa.(x) )
+        c4 = sum(w .* dpb.(x) .* dpb.(x) )  
+
+        return [c1 c2; c3 c4]
     end
 
     function buildLM(Nn)
@@ -22,7 +41,7 @@ module Builders
     function buildGlobalA(X,LM,Nn) #=Contructing global matrix Aᵢⱼ=∫Φ'ᵢ(x)Φ'ⱼ(x)dx=#
         he = X[2]-X[1] #=Spatial step Δx=#
         A = zeros((Nn,Nn))
-        Ae = buildAe()
+        Ae = buildAe(2)
         for e in 1:(Nn-1)
             globalP = LM[e,:]
             localP = globalP.-(e-1)
@@ -41,7 +60,7 @@ module Builders
     function buildGlobalC(X,LM,Nn) #=Contructing global matrix Cᵢⱼ=∫Φᵢ(x)Φⱼ(x)dx=#
         he = X[2]-X[1] #=Spatial step Δx=#
         C = zeros((Nn,Nn))
-        Ce = buildCe()
+        Ce = buildCe(2)
         for e in 1:(Nn-1)
             globalP = LM[e,:]
             localP = globalP.-(e-1)
